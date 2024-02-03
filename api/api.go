@@ -32,7 +32,7 @@ func (s *APIServer) Run() {
 	router.GET("/books", s.handlerGetBooks)
 	router.GET("/books/:id", s.handlerGetBook)
 	router.POST("/books", s.handleCreateBook)
-	// router.PUT("/books/:id", updateBook)
+	router.PUT("/books/:id", s.handlerUpdateBook)
 	router.DELETE("/books/:id", s.handlerDeleteBook)
 
 	log.Println("Server running on port: ", s.listenAddr)
@@ -88,15 +88,6 @@ func (s *APIServer) handlerGetBooks(w http.ResponseWriter, r *http.Request, ps h
 
 	writeJSONResponse(w, http.StatusOK, books)
 }
-
-func writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 func (s *APIServer) handlerDeleteBook(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	id, err := strconv.Atoi(ps.ByName("id"))
@@ -111,4 +102,35 @@ func (s *APIServer) handlerDeleteBook(w http.ResponseWriter, r *http.Request, ps
 	}
 
 	writeJSONResponse(w, http.StatusOK, map[string]string{"message": "book deleted successfully"})
+}
+
+func (s *APIServer) handlerUpdateBook(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+
+	id, err := strconv.Atoi(ps.ByName("id"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var updateBook types.Book
+
+	if err := json.NewDecoder(r.Body).Decode(&updateBook); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.store.UpdateBook(r.Context(), int64(id), updateBook); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	writeJSONResponse(w, http.StatusOK, updateBook)
+}
+
+func writeJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
